@@ -1,6 +1,7 @@
 package com.example.api.auth;
 import com.example.api.auth.entity.AppUser;
 import com.example.api.auth.repository.AppUserRepository;
+import java.util.UUID;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,7 +26,7 @@ public class DataInitializer implements CommandLineRunner {
 
             ana.setEmail("ana@empresa-a.com");
             ana.setPassword(passwordEncoder.encode("Ana123!"));
-            ana.setTenantId(1L);
+            ana.setTenantId(UUID.fromString("ea3c47d5-e94a-4737-be77-42d1ab120038"));
             ana.setRole("ADMIN");
 
             appUserRepository.save(ana);
@@ -36,7 +37,7 @@ public class DataInitializer implements CommandLineRunner {
 
             juan.setEmail("juan@empresa-b.com");
             juan.setPassword(passwordEncoder.encode("Juan123!"));
-            juan.setTenantId(2L);
+            juan.setTenantId(UUID.fromString("ea3c47d5-e94a-4737-be77-42d1ab120038"));
             juan.setRole("USER");
 
             appUserRepository.save(juan);

@@ -1,0 +1,931 @@
+openapi: 3.1.0
+info:
+  title: Academic Catalog API
+  version: 1.0.0
+  summary: API multitenant para gestionar cursos, asignaturas, docentes y habilitaciones.
+  description: |
+    API REST para gestionar el catálogo académico de cada tenant.
+
+    Seguridad y multitenancy:
+    - Todas las operaciones requieren un JWT Bearer válido.
+    - El tenant y los roles se obtienen exclusivamente de claims verificados del token.
+    - El cliente no puede seleccionar ni sobrescribir el tenant mediante parámetros o cuerpos.
+    - El backend debe aplicar aislamiento por tenant en cada lectura y escritura.
+    - Los roles documentados son CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER y TEACHER.
+    - La seguridad declarativa de OpenAPI describe requisitos de autenticación; la autorización por
+      roles y las comprobaciones de propiedad deben aplicarse en el servidor.
+
+    Reglas de negocio:
+    - Subject pertenece a exactamente un Course.
+    - Habilitation relaciona un Teacher, un Course y un Subject del mismo tenant.
+    - El Subject de una Habilitation debe pertenecer al Course indicado.
+    - effective se calcula en servidor: habilitación ACTIVE y Teacher, Course y Subject activos.
+    - Las bajas de Course, Subject y Teacher son lógicas y preservan el histórico.
+    - Revocar una Habilitation no la elimina; para habilitar de nuevo la misma combinación se crea
+      una nueva Habilitation.
+    - Deben aplicarse restricciones de unicidad e integridad en persistencia, incluyendo protección
+      contra duplicados concurrentes.
+servers:
+  - url: https://api.example.com/academiccatalog/v1
+    description: URL base de ejemplo; sustituir por el entorno real.
+tags:
+  - name: Courses
+    description: Gestión de cursos académicos.
+  - name: Subjects
+    description: Asignaturas anidadas bajo un curso.
+  - name: Teachers
+    description: Perfiles docentes gestionados por Academic Catalog.
+  - name: Habilitations
+    description: Habilitaciones de docentes para impartir asignaturas.
+  - name: Queries
+    description: Consultas derivadas del catálogo.
+security:
+  - bearerAuth: []
+paths:
+  /courses:
+    get:
+      tags: [Courses]
+      operationId: listCourses
+      summary: Listar cursos
+      description: |
+        Devuelve cursos del tenant autenticado. Por defecto solo devuelve recursos activos.
+        CATALOG_ADMIN puede incluir inactivos mediante includeInactive=true.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: search
+          in: query
+          description: Busca por código o nombre.
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: includeInactive
+          in: query
+          description: Incluye recursos inactivos; solo CATALOG_ADMIN.
+          schema: { type: boolean, default: false }
+        - name: sort
+          in: query
+          description: Campo de ordenación permitido.
+          schema:
+            type: string
+            enum: [code, name, createdAt, updatedAt]
+            default: code
+        - name: direction
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
+      responses:
+        '200':
+          description: Página de cursos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoursePage'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    post:
+      tags: [Courses]
+      operationId: createCourse
+      summary: Crear curso
+      description: CATALOG_ADMIN o CATALOG_EDITOR. El código debe ser único en el tenant.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CourseCreate'}
+      responses:
+        '201':
+          description: Curso creado.
+          headers:
+            Location:
+              description: URI del curso creado.
+              schema: { type: string, format: uri-reference }
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Course'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /courses/{courseId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Courses]
+      operationId: getCourse
+      summary: Obtener curso
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+      responses:
+        '200':
+          description: Curso encontrado.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Course'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    patch:
+      tags: [Courses]
+      operationId: updateCourse
+      summary: Modificar curso
+      description: Actualización parcial. No permite modificar id, tenant, estado ni marcas de tiempo.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: {$ref: '#/components/schemas/CoursePatch'}
+          application/json:
+            schema: {$ref: '#/components/schemas/CoursePatch'}
+      responses:
+        '200':
+          description: Curso modificado.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Course'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    delete:
+      tags: [Courses]
+      operationId: deactivateCourse
+      summary: Dar de baja curso
+      description: Baja lógica exclusiva de CATALOG_ADMIN. Las habilitaciones se conservan y dejan de ser efectivas mientras el curso esté inactivo.
+      x-required-roles: [CATALOG_ADMIN]
+      responses:
+        '204': {description: Curso dado de baja lógicamente.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /courses/{courseId}/activation:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    post:
+      tags: [Courses]
+      operationId: reactivateCourse
+      summary: Reactivar curso
+      description: Reactivación lógica exclusiva de CATALOG_ADMIN. Las habilitaciones no revocadas vuelven a ser efectivas si el resto de recursos relacionados también está activo.
+      x-required-roles: [CATALOG_ADMIN]
+      responses:
+        '200':
+          description: Curso reactivado.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Course'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /courses/{courseId}/subjects:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+    get:
+      tags: [Subjects]
+      operationId: listSubjects
+      summary: Listar asignaturas de un curso
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: search
+          in: query
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: includeInactive
+          in: query
+          description: Incluye asignaturas inactivas; solo CATALOG_ADMIN.
+          schema: { type: boolean, default: false }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [code, name, createdAt, updatedAt]
+            default: code
+        - name: direction
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
+      responses:
+        '200':
+          description: Página de asignaturas.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SubjectPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    post:
+      tags: [Subjects]
+      operationId: createSubject
+      summary: Crear asignatura
+      description: El courseId se obtiene de la ruta. El código debe ser único dentro del curso.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SubjectCreate'}
+      responses:
+        '201':
+          description: Asignatura creada.
+          headers:
+            Location:
+              schema: { type: string, format: uri-reference }
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Subject'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /courses/{courseId}/subjects/{subjectId}/activation:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/SubjectId'
+    post:
+      tags: [Subjects]
+      operationId: reactivateSubject
+      summary: Reactivar asignatura
+      description: Reactivación lógica exclusiva de CATALOG_ADMIN. Las habilitaciones no revocadas vuelven a ser efectivas si el resto de recursos relacionados también está activo.
+      x-required-roles: [CATALOG_ADMIN]
+      responses:
+        '200':
+          description: Asignatura reactivada.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Subject'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /courses/{courseId}/subjects/{subjectId}:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/SubjectId'
+    get:
+      tags: [Subjects]
+      operationId: getSubject
+      summary: Obtener asignatura
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+      responses:
+        '200':
+          description: Asignatura encontrada.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Subject'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    patch:
+      tags: [Subjects]
+      operationId: updateSubject
+      summary: Modificar asignatura
+      description: Actualización parcial; courseId no puede cambiarse mediante PATCH.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: {$ref: '#/components/schemas/SubjectPatch'}
+          application/json:
+            schema: {$ref: '#/components/schemas/SubjectPatch'}
+      responses:
+        '200':
+          description: Asignatura modificada.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Subject'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    delete:
+      tags: [Subjects]
+      operationId: deactivateSubject
+      summary: Dar de baja asignatura
+      description: Baja lógica exclusiva de CATALOG_ADMIN. Se conservan las habilitaciones históricas.
+      x-required-roles: [CATALOG_ADMIN]
+      responses:
+        '204': {description: Asignatura dada de baja lógicamente.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /teachers:
+    get:
+      tags: [Teachers]
+      operationId: listTeachers
+      summary: Listar docentes
+      description: Lista perfiles del tenant. No expone perfiles de otros tenants.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: search
+          in: query
+          description: Busca por nombre, apellidos o email.
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: status
+          in: query
+          schema: {$ref: '#/components/schemas/TeacherStatus'}
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [lastName, firstName, email, createdAt, updatedAt]
+            default: lastName
+        - name: direction
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
+      responses:
+        '200':
+          description: Página de docentes.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TeacherPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    post:
+      tags: [Teachers]
+      operationId: createTeacher
+      summary: Crear docente
+      description: CATALOG_ADMIN o CATALOG_EDITOR. El email debe ser único por tenant.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TeacherCreate'}
+      responses:
+        '201':
+          description: Docente creado.
+          headers:
+            Location:
+              schema: { type: string, format: uri-reference }
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Teacher'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /teachers/{teacherId}/activation:
+    parameters:
+      - $ref: '#/components/parameters/TeacherId'
+    post:
+      tags: [Teachers]
+      operationId: reactivateTeacher
+      summary: Reactivar docente
+      description: Reactivación lógica exclusiva de CATALOG_ADMIN. Las habilitaciones no revocadas vuelven a ser efectivas si el curso y la asignatura también están activos.
+      x-required-roles: [CATALOG_ADMIN]
+      responses:
+        '200':
+          description: Docente reactivado.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Teacher'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /teachers/me:
+    get:
+      tags: [Teachers]
+      operationId: getMyTeacherProfile
+      summary: Obtener mi perfil docente
+      description: Resuelve el perfil asociado a la identidad autenticada; no acepta teacherId del cliente.
+      x-required-roles: [TEACHER]
+      responses:
+        '200':
+          description: Perfil propio.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Teacher'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    patch:
+      tags: [Teachers]
+      operationId: updateMyTeacherProfile
+      summary: Modificar mi perfil docente
+      description: Solo permite modificar firstName, lastName y email del perfil asociado a la identidad autenticada.
+      x-required-roles: [TEACHER]
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: {$ref: '#/components/schemas/TeacherSelfPatch'}
+          application/json:
+            schema: {$ref: '#/components/schemas/TeacherSelfPatch'}
+      responses:
+        '200':
+          description: Perfil actualizado.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Teacher'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /teachers/{teacherId}:
+    parameters:
+      - $ref: '#/components/parameters/TeacherId'
+    get:
+      tags: [Teachers]
+      operationId: getTeacher
+      summary: Obtener docente
+      description: TEACHER solo puede consultar su propio perfil; los demás roles indicados pueden consultar dentro de su tenant.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+      responses:
+        '200':
+          description: Docente encontrado.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Teacher'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    patch:
+      tags: [Teachers]
+      operationId: updateTeacher
+      summary: Modificar docente
+      description: Admin y Editor pueden modificar el perfil; Teacher solo puede modificar su propio perfil y solo campos de perfil.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, TEACHER]
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: {$ref: '#/components/schemas/TeacherPatch'}
+          application/json:
+            schema: {$ref: '#/components/schemas/TeacherPatch'}
+      responses:
+        '200':
+          description: Docente modificado.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Teacher'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    delete:
+      tags: [Teachers]
+      operationId: deactivateTeacher
+      summary: Dar de baja docente
+      description: Baja lógica exclusiva de CATALOG_ADMIN. Las habilitaciones se conservan pero dejan de ser efectivas.
+      x-required-roles: [CATALOG_ADMIN]
+      responses:
+        '204': {description: Docente dado de baja lógicamente.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /teachers/{teacherId}/habilitations:
+    parameters:
+      - $ref: '#/components/parameters/TeacherId'
+    get:
+      tags: [Habilitations]
+      operationId: listTeacherHabilitations
+      summary: Listar habilitaciones de un docente
+      description: Teacher solo puede consultar las habilitaciones de su propio perfil.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: status
+          in: query
+          schema: {$ref: '#/components/schemas/HabilitationStatus'}
+        - name: effective
+          in: query
+          description: Filtra por vigencia efectiva calculada.
+          schema: {type: boolean}
+      responses:
+        '200':
+          description: Página de habilitaciones.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HabilitationPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    post:
+      tags: [Habilitations]
+      operationId: createHabilitation
+      summary: Crear habilitación para un docente
+      description: |
+        CATALOG_ADMIN o CATALOG_EDITOR. Se rechaza una combinación que ya tenga una habilitación
+        activa. El curso y la asignatura deben estar activos y la asignatura debe pertenecer al curso.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/HabilitationCreate'}
+      responses:
+        '201':
+          description: Habilitación creada.
+          headers:
+            Location:
+              schema: { type: string, format: uri-reference }
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Habilitation'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /teachers/{teacherId}/habilitations/{habilitationId}:
+    parameters:
+      - $ref: '#/components/parameters/TeacherId'
+      - $ref: '#/components/parameters/HabilitationId'
+    get:
+      tags: [Habilitations]
+      operationId: getTeacherHabilitation
+      summary: Obtener una habilitación
+      description: Teacher solo puede consultar una habilitación propia.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+      responses:
+        '200':
+          description: Habilitación encontrada.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Habilitation'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    delete:
+      tags: [Habilitations]
+      operationId: revokeHabilitation
+      summary: Revocar habilitación
+      description: Revocación lógica. Solo Admin o Editor; se conserva el histórico y se fija revokedAt.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
+      responses:
+        '204': {description: Habilitación revocada.}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /courses/{courseId}/subjects/{subjectId}/teachers:
+    parameters:
+      - $ref: '#/components/parameters/CourseId'
+      - $ref: '#/components/parameters/SubjectId'
+    get:
+      tags: [Queries]
+      operationId: listTeachersForSubject
+      summary: Listar docentes habilitados para una asignatura
+      description: Devuelve docentes con habilitaciones efectivas. No permite acceso a TEACHER.
+      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de docentes habilitados.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TeacherPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT emitido por el proveedor de identidad. El servidor valida firma, issuer, audience,
+        expiración y claims requeridos. El tenant y los roles se extraen de claims verificados.
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: Índice de página basado en cero.
+      schema: {type: integer, minimum: 0, default: 0}
+    Size:
+      name: size
+      in: query
+      description: Número de elementos por página.
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    CourseId:
+      name: courseId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    SubjectId:
+      name: subjectId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    TeacherId:
+      name: teacherId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+    HabilitationId:
+      name: habilitationId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/UUID'}
+  responses:
+    BadRequest:
+      description: Petición inválida, parámetros incorrectos o cuerpo no válido.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Unauthorized:
+      description: Token ausente, inválido o expirado.
+      headers:
+        WWW-Authenticate:
+          schema: {type: string}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Forbidden:
+      description: El rol no permite la operación o la política de acceso la deniega.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    NotFound:
+      description: Recurso inexistente o no accesible en el tenant autenticado.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    Conflict:
+      description: Conflicto de unicidad, estado o integridad del dominio.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+    InternalServerError:
+      description: Error inesperado. No debe incluir detalles internos sensibles.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApiError'}
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      examples:
+        - 5be04b12-95a1-4d75-88d8-850c3a7a2ef3
+    DateTime:
+      type: string
+      format: date-time
+      examples:
+        - '2026-10-22T08:00:00Z'
+    CourseStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    SubjectStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    TeacherStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    HabilitationStatus:
+      type: string
+      enum: [ACTIVE, REVOKED]
+    EffectiveStatusReason:
+      type: string
+      enum: [TEACHER_INACTIVE, COURSE_INACTIVE, SUBJECT_INACTIVE]
+    Course:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, status, createdAt, updatedAt]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        code: {type: string, minLength: 1, maxLength: 50, pattern: '.*\S.*'}
+        name: {type: string, minLength: 1, maxLength: 200, pattern: '.*\S.*'}
+        description: {type: [string, 'null'], maxLength: 2000}
+        status: {$ref: '#/components/schemas/CourseStatus'}
+        createdAt: {$ref: '#/components/schemas/DateTime'}
+        updatedAt: {$ref: '#/components/schemas/DateTime'}
+    CourseCreate:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 50, pattern: '.*\S.*'}
+        name: {type: string, minLength: 1, maxLength: 200, pattern: '.*\S.*'}
+        description: {type: [string, 'null'], maxLength: 2000}
+    CoursePatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        code: {type: string, minLength: 1, maxLength: 50, pattern: '.*\S.*'}
+        name: {type: string, minLength: 1, maxLength: 200, pattern: '.*\S.*'}
+        description: {type: [string, 'null'], maxLength: 2000}
+    Subject:
+      type: object
+      additionalProperties: false
+      required: [id, courseId, code, name, status, createdAt, updatedAt]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        courseId: {$ref: '#/components/schemas/UUID'}
+        code: {type: string, minLength: 1, maxLength: 50, pattern: '.*\S.*'}
+        name: {type: string, minLength: 1, maxLength: 200, pattern: '.*\S.*'}
+        description: {type: [string, 'null'], maxLength: 2000}
+        status: {$ref: '#/components/schemas/SubjectStatus'}
+        createdAt: {$ref: '#/components/schemas/DateTime'}
+        updatedAt: {$ref: '#/components/schemas/DateTime'}
+    SubjectCreate:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 50, pattern: '.*\S.*'}
+        name: {type: string, minLength: 1, maxLength: 200, pattern: '.*\S.*'}
+        description: {type: [string, 'null'], maxLength: 2000}
+    SubjectPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        code: {type: string, minLength: 1, maxLength: 50, pattern: '.*\S.*'}
+        name: {type: string, minLength: 1, maxLength: 200, pattern: '.*\S.*'}
+        description: {type: [string, 'null'], maxLength: 2000}
+    Teacher:
+      type: object
+      additionalProperties: false
+      required: [id, firstName, lastName, email, status, createdAt, updatedAt]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        firstName: {type: string, minLength: 1, maxLength: 100, pattern: '.*\S.*'}
+        lastName: {type: string, minLength: 1, maxLength: 150, pattern: '.*\S.*'}
+        email: {type: string, format: email, maxLength: 254}
+        status: {$ref: '#/components/schemas/TeacherStatus'}
+        createdAt: {$ref: '#/components/schemas/DateTime'}
+        updatedAt: {$ref: '#/components/schemas/DateTime'}
+    TeacherCreate:
+      type: object
+      additionalProperties: false
+      required: [firstName, lastName, email]
+      properties:
+        firstName: {type: string, minLength: 1, maxLength: 100, pattern: '.*\S.*'}
+        lastName: {type: string, minLength: 1, maxLength: 150, pattern: '.*\S.*'}
+        email: {type: string, format: email, maxLength: 254}
+    TeacherPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        firstName: {type: string, minLength: 1, maxLength: 100, pattern: '.*\S.*'}
+        lastName: {type: string, minLength: 1, maxLength: 150, pattern: '.*\S.*'}
+        email: {type: string, format: email, maxLength: 254}
+    TeacherSelfPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        firstName: {type: string, minLength: 1, maxLength: 100, pattern: '.*\S.*'}
+        lastName: {type: string, minLength: 1, maxLength: 150, pattern: '.*\S.*'}
+        email: {type: string, format: email, maxLength: 254}
+    Habilitation:
+      type: object
+      additionalProperties: false
+      required: [id, teacherId, courseId, subjectId, status, effective, effectiveStatusReason, createdAt, updatedAt, revokedAt]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        teacherId: {$ref: '#/components/schemas/UUID'}
+        courseId: {$ref: '#/components/schemas/UUID'}
+        subjectId: {$ref: '#/components/schemas/UUID'}
+        status: {$ref: '#/components/schemas/HabilitationStatus'}
+        effective:
+          type: boolean
+          readOnly: true
+          description: True solo si la habilitación está ACTIVE y Teacher, Course y Subject están activos.
+        effectiveStatusReason:
+          type: array
+          readOnly: true
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/EffectiveStatusReason'}
+          description: Lista vacía si effective=true; contiene los motivos de inefectividad en caso contrario.
+        createdAt: {$ref: '#/components/schemas/DateTime'}
+        updatedAt: {$ref: '#/components/schemas/DateTime'}
+        revokedAt:
+          oneOf:
+            - {$ref: '#/components/schemas/DateTime'}
+            - {type: 'null'}
+          readOnly: true
+    HabilitationCreate:
+      type: object
+      additionalProperties: false
+      required: [courseId, subjectId]
+      properties:
+        courseId: {$ref: '#/components/schemas/UUID'}
+        subjectId: {$ref: '#/components/schemas/UUID'}
+    PageMetadata:
+      type: object
+      additionalProperties: false
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page: {type: integer, minimum: 0}
+        size: {type: integer, minimum: 1, maximum: 100}
+        totalElements: {type: integer, minimum: 0}
+        totalPages: {type: integer, minimum: 0}
+    CoursePage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Course'}
+        page: {type: integer, minimum: 0}
+        size: {type: integer, minimum: 1, maximum: 100}
+        totalElements: {type: integer, minimum: 0}
+        totalPages: {type: integer, minimum: 0}
+    SubjectPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Subject'}
+        page: {type: integer, minimum: 0}
+        size: {type: integer, minimum: 1, maximum: 100}
+        totalElements: {type: integer, minimum: 0}
+        totalPages: {type: integer, minimum: 0}
+    TeacherPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Teacher'}
+        page: {type: integer, minimum: 0}
+        size: {type: integer, minimum: 1, maximum: 100}
+        totalElements: {type: integer, minimum: 0}
+        totalPages: {type: integer, minimum: 0}
+    HabilitationPage:
+      type: object
+      additionalProperties: false
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Habilitation'}
+        page: {type: integer, minimum: 0}
+        size: {type: integer, minimum: 1, maximum: 100}
+        totalElements: {type: integer, minimum: 0}
+        totalPages: {type: integer, minimum: 0}
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message, traceId]
+      properties:
+        code:
+          type: string
+          examples: [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+        message:
+          type: string
+          maxLength: 1000
+        traceId:
+          type: string
+          description: Identificador de correlación para soporte y observabilidad.
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, issue]
+            properties:
+              field: {type: string}
+              issue: {type: string}

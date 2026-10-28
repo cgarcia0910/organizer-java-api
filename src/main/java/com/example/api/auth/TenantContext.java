@@ -1,13 +1,15 @@
 package com.example.api.auth;
 
+import java.util.UUID;
+
 public class TenantContext {
-    private static final ThreadLocal<Long> CURRENT = new ThreadLocal<>();
-    public static void setTenantId(Long tenantId) {
+    private static final ThreadLocal<UUID> CURRENT = new ThreadLocal<>();
+    public static void setTenantId(UUID tenantId) {
         CURRENT.set(tenantId);
     }
 
-    public static Long getTenantId() {
-        Long tenantId = CURRENT.get();
+    public static UUID getTenantId() {
+        UUID tenantId = CURRENT.get();
 
         if (tenantId == null) {
             throw new IllegalStateException(
