@@ -1,6 +1,8 @@
 package com.example.api.auth;
 import com.example.api.auth.entity.AppUser;
+import com.example.api.auth.entity.Role;
 import com.example.api.auth.repository.AppUserRepository;
+import com.example.api.auth.repository.RoleRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,9 +18,11 @@ import java.io.IOException;
 public class TenantFilter extends OncePerRequestFilter {
 
     private final AppUserRepository userRepository;
+    private final RoleRepository roleRepository;
 
-    public TenantFilter(AppUserRepository userRepository) {
+    public TenantFilter(AppUserRepository userRepository, RoleRepository roleRepository) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
     }
 
     @Override
@@ -52,18 +56,18 @@ public class TenantFilter extends OncePerRequestFilter {
 
             AppUser user = userRepository.findByEmail(email)
                     .orElse(null);
-
             if (user == null) {
                 response.sendError(401);
                 return;
             }
 
             TenantContext.setTenantId(user.getTenantId());
-
+            RoleContext.setRoles(user.getRoles().stream().map(Role::getName).toList());
             chain.doFilter(request, response);
 
         } finally {
             TenantContext.clear();
+            RoleContext.clear();
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.api.auth.entity;
 
+import java.util.UUID;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -9,8 +10,8 @@ import lombok.Getter;
 public class Tenant {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false)
     private String name;

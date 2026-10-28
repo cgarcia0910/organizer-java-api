@@ -2,6 +2,7 @@ package com.example.api.auth.controller;
 
 import com.example.api.auth.entity.AppUser;
 import com.example.api.auth.repository.AppUserRepository;
+import java.util.stream.Collectors;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -63,7 +64,9 @@ public class AuthController {
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(900))
                 .subject(user.getEmail())
-                .claim("scope", "ROLE_" + user.getRole())
+                .claim("scope", user.getRoles().stream()
+                        .map(role -> "ROLE_" + role.getName())
+                        .collect(Collectors.joining(" ")))
                 .build();
 
         JwsHeader header = JwsHeader
