@@ -1,6 +1,10 @@
 package com.example.api.auth.config;
 
 import com.example.api.auth.TenantFilter;
+import com.example.api.auth.controller.AuthController;
+import jakarta.servlet.http.Cookie;
+import java.util.Arrays;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,6 +37,20 @@ public class SecurityConfig {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(authorities);
         return converter;
+    }
+
+    private BearerTokenResolver cookieTokenResolver() {
+        return request -> {
+            Cookie[] cookies = request.getCookies();
+            if (cookies == null) {
+                return null;
+            }
+            return Arrays.stream(cookies)
+                    .filter(c -> AuthController.ACCESS_TOKEN_COOKIE.equals(c.getName()))
+                    .map(Cookie::getValue)
+                    .findFirst()
+                    .orElse(null);
+        };
     }
 
     @Bean
@@ -73,11 +91,12 @@ public class SecurityConfig {
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/logout").permitAll()
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth ->
-                        oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                .oauth2ResourceServer(oauth -> oauth
+                        .bearerTokenResolver(cookieTokenResolver())
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 )
                 .addFilterAfter(
                         tenantFilter,
