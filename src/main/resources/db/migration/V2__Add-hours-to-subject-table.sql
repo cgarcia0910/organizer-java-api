@@ -1,0 +1,3 @@
+ALTER TABLE public.subjects
+    ADD COLUMN hours_per_week INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN max_hours_per_day INTEGER NOT NULL DEFAULT 0;
