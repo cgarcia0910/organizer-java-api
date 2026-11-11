@@ -69,6 +69,9 @@ public class CourseService {
     public com.example.dto.Course createCourse(CourseCreate courseCreate) {
         Course course = new Course();
         UUID tenantId = TenantContext.getTenantId();
+        if (coursesRepository.existsByTenantIdAndCode(tenantId, courseCreate.getCode())) {
+            throw new ConflictException("Ya existe un curso con ese código");
+        }
         course.setTenantId(tenantId);
         course.setCode(courseCreate.getCode());
         course.setDescription(courseCreate.getDescription());

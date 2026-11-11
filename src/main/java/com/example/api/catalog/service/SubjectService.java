@@ -6,6 +6,7 @@ import com.example.api.auth.TenantContext;
 import com.example.api.catalog.entity.Course;
 import com.example.api.catalog.entity.Subject;
 import com.example.api.catalog.exception.BadRequestException;
+import com.example.api.catalog.exception.ConflictException;
 import com.example.api.catalog.exception.ResourceNotFoundException;
 import com.example.api.catalog.mapper.SubjectMapper;
 import com.example.api.catalog.repository.CoursesRepository;
@@ -50,6 +51,15 @@ public class SubjectService {
         UUID tenantId = TenantContext.getTenantId();
         coursesRepository.findByIdAndTenantId(courseId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Curso no encontrado"));
+        Set<String> codes = new HashSet<>();
+        subjectCreateList.forEach(subjectCreate -> {
+            if (!codes.add(subjectCreate.getCode())) {
+                throw new ConflictException("Código de asignatura repetido en la petición");
+            }
+            if (subjectRepository.existsByTenantIdAndCourseIdAndCode(tenantId, courseId, subjectCreate.getCode())) {
+                throw new ConflictException("Ya existe una asignatura con ese código en el curso");
+            }
+        });
         List<Subject> subjects = subjectCreateList.stream().map(subjectCreate -> Subject.builder()
                 .tenantId(tenantId)
                 .courseId(courseId)
@@ -81,7 +91,7 @@ public class SubjectService {
         }
 
         Map<UUID, Subject> toUpdate = findInCourse(patches.stream().map(SubjectPatch::getId).collect(Collectors.toSet()), tenantId, courseId);
-        patches.forEach(patch -> applyPatch(toUpdate.get(patch.getId()), patch));
+        patches.forEach(patch -> applyPatch(toUpdate.get(patch.getId()), patch, tenantId, courseId));
 
         findInCourse(deleteIds, tenantId, courseId).values()
                 .forEach(subject -> subject.setStatus("INACTIVE"));
@@ -103,8 +113,11 @@ public class SubjectService {
         return found;
     }
 
-    private void applyPatch(Subject subject, SubjectPatch patch) {
-        if (patch.getCode() != null) {
+    private void applyPatch(Subject subject, SubjectPatch patch, UUID tenantId, UUID courseId) {
+        if (patch.getCode() != null && !patch.getCode().equals(subject.getCode())) {
+            if (subjectRepository.existsByTenantIdAndCourseIdAndCode(tenantId, courseId, patch.getCode())) {
+                throw new ConflictException("Ya existe una asignatura con ese código en el curso");
+            }
             subject.setCode(patch.getCode());
         }
         if (patch.getName() != null) {
