@@ -3,7 +3,6 @@ package com.example.api.catalog.controller;
 import com.example.api.SubjectsApi;
 import com.example.api.catalog.service.SubjectService;
 import com.example.dto.*;
-import jakarta.validation.Valid;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,24 +27,9 @@ public class SubjectsController implements SubjectsApi {
     }
 
     @Override
-    public ResponseEntity<Void> deactivateSubject(UUID courseId, UUID subjectId) {
-        return null;
-    }
-
-    @Override
-    public ResponseEntity<Subject> getSubject(UUID courseId, UUID subjectId) {
-        return null;
-    }
-
-    @Override
     @PreAuthorize("hasAnyRole('CATALOG_ADMIN','CATALOG_EDITOR','CATALOG_READER','TEACHER')")
     public ResponseEntity<SubjectPage> listSubjects(UUID courseId, Integer page, Integer size, @Nullable String search, Boolean includeInactive, String sort, String direction) {
         return ResponseEntity.ok(subjectService.listSubjects(courseId, page, size, search, includeInactive, sort, direction));
-    }
-
-    @Override
-    public ResponseEntity<Subject> reactivateSubject(UUID courseId, UUID subjectId) {
-        return null;
     }
 
     @Override

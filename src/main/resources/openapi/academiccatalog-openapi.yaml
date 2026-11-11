@@ -324,59 +324,59 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/InternalServerError' }
-  /courses/{courseId}/subjects/{subjectId}/activation:
-    parameters:
-      - $ref: '#/components/parameters/CourseId'
-      - $ref: '#/components/parameters/SubjectId'
-    post:
-      tags: [Subjects]
-      operationId: reactivateSubject
-      summary: Reactivar asignatura
-      description: Reactivación lógica exclusiva de CATALOG_ADMIN. Las habilitaciones no revocadas vuelven a ser efectivas si el resto de recursos relacionados también está activo.
-      x-required-roles: [CATALOG_ADMIN]
-      responses:
-        '200':
-          description: Asignatura reactivada.
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Subject'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
-  /courses/{courseId}/subjects/{subjectId}:
-    parameters:
-      - $ref: '#/components/parameters/CourseId'
-      - $ref: '#/components/parameters/SubjectId'
-    get:
-      tags: [Subjects]
-      operationId: getSubject
-      summary: Obtener asignatura
-      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
-      responses:
-        '200':
-          description: Asignatura encontrada.
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Subject'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
-    delete:
-      tags: [Subjects]
-      operationId: deactivateSubject
-      summary: Dar de baja asignatura
-      description: Baja lógica exclusiva de CATALOG_ADMIN. Se conservan las habilitaciones históricas.
-      x-required-roles: [CATALOG_ADMIN]
-      responses:
-        '204': {description: Asignatura dada de baja lógicamente.}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
+#  /courses/{courseId}/subjects/{subjectId}/activation:
+#    parameters:
+#      - $ref: '#/components/parameters/CourseId'
+#      - $ref: '#/components/parameters/SubjectId'
+#    post:
+#      tags: [Subjects]
+#      operationId: reactivateSubject
+#      summary: Reactivar asignatura
+#      description: Reactivación lógica exclusiva de CATALOG_ADMIN. Las habilitaciones no revocadas vuelven a ser efectivas si el resto de recursos relacionados también está activo.
+#      x-required-roles: [CATALOG_ADMIN]
+#      responses:
+#        '200':
+#          description: Asignatura reactivada.
+#          content:
+#            application/json:
+#              schema: {$ref: '#/components/schemas/Subject'}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '409': {$ref: '#/components/responses/Conflict'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
+#  /courses/{courseId}/subjects/{subjectId}:
+#    parameters:
+#      - $ref: '#/components/parameters/CourseId'
+#      - $ref: '#/components/parameters/SubjectId'
+#    get:
+#      tags: [Subjects]
+#      operationId: getSubject
+#      summary: Obtener asignatura
+#      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+#      responses:
+#        '200':
+#          description: Asignatura encontrada.
+#          content:
+#            application/json:
+#              schema: {$ref: '#/components/schemas/Subject'}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
+#    delete:
+#      tags: [Subjects]
+#      operationId: deactivateSubject
+#      summary: Dar de baja asignatura
+#      description: Baja lógica exclusiva de CATALOG_ADMIN. Se conservan las habilitaciones históricas.
+#      x-required-roles: [CATALOG_ADMIN]
+#      responses:
+#        '204': {description: Asignatura dada de baja lógicamente.}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '409': {$ref: '#/components/responses/Conflict'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
   /teachers:
     get:
       tags: [Teachers]
@@ -438,87 +438,87 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
         '500': {$ref: '#/components/responses/InternalServerError'}
-  /teachers/{teacherId}/activation:
-    parameters:
-      - $ref: '#/components/parameters/TeacherId'
-    post:
-      tags: [Teachers]
-      operationId: reactivateTeacher
-      summary: Reactivar docente
-      description: Reactivación lógica exclusiva de CATALOG_ADMIN. Las habilitaciones no revocadas vuelven a ser efectivas si el curso y la asignatura también están activos.
-      x-required-roles: [CATALOG_ADMIN]
-      responses:
-        '200':
-          description: Docente reactivado.
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Teacher'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
-  /teachers/me:
-    get:
-      tags: [Teachers]
-      operationId: getMyTeacherProfile
-      summary: Obtener mi perfil docente
-      description: Resuelve el perfil asociado a la identidad autenticada; no acepta teacherId del cliente.
-      x-required-roles: [TEACHER]
-      responses:
-        '200':
-          description: Perfil propio.
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Teacher'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
-    patch:
-      tags: [Teachers]
-      operationId: updateMyTeacherProfile
-      summary: Modificar mi perfil docente
-      description: Solo permite modificar firstName, lastName y email del perfil asociado a la identidad autenticada.
-      x-required-roles: [TEACHER]
-      requestBody:
-        required: true
-        content:
-          application/merge-patch+json:
-            schema: {$ref: '#/components/schemas/TeacherSelfPatch'}
-          application/json:
-            schema: {$ref: '#/components/schemas/TeacherSelfPatch'}
-      responses:
-        '200':
-          description: Perfil actualizado.
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Teacher'}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
+#  /teachers/{teacherId}/activation:
+#    parameters:
+#      - $ref: '#/components/parameters/TeacherId'
+#    post:
+#      tags: [Teachers]
+#      operationId: reactivateTeacher
+#      summary: Reactivar docente
+#      description: Reactivación lógica exclusiva de CATALOG_ADMIN. Las habilitaciones no revocadas vuelven a ser efectivas si el curso y la asignatura también están activos.
+#      x-required-roles: [CATALOG_ADMIN]
+#      responses:
+#        '200':
+#          description: Docente reactivado.
+#          content:
+#            application/json:
+#              schema: {$ref: '#/components/schemas/Teacher'}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '409': {$ref: '#/components/responses/Conflict'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
+#  /teachers/me:
+#    get:
+#      tags: [Teachers]
+#      operationId: getMyTeacherProfile
+#      summary: Obtener mi perfil docente
+#      description: Resuelve el perfil asociado a la identidad autenticada; no acepta teacherId del cliente.
+#      x-required-roles: [TEACHER]
+#      responses:
+#        '200':
+#          description: Perfil propio.
+#          content:
+#            application/json:
+#              schema: {$ref: '#/components/schemas/Teacher'}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
+#    patch:
+#      tags: [Teachers]
+#      operationId: updateMyTeacherProfile
+#      summary: Modificar mi perfil docente
+#      description: Solo permite modificar firstName, lastName y email del perfil asociado a la identidad autenticada.
+#      x-required-roles: [TEACHER]
+#      requestBody:
+#        required: true
+#        content:
+#          application/merge-patch+json:
+#            schema: {$ref: '#/components/schemas/TeacherSelfPatch'}
+#          application/json:
+#            schema: {$ref: '#/components/schemas/TeacherSelfPatch'}
+#      responses:
+#        '200':
+#          description: Perfil actualizado.
+#          content:
+#            application/json:
+#              schema: {$ref: '#/components/schemas/Teacher'}
+#        '400': {$ref: '#/components/responses/BadRequest'}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '409': {$ref: '#/components/responses/Conflict'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
   /teachers/{teacherId}:
     parameters:
       - $ref: '#/components/parameters/TeacherId'
-    get:
-      tags: [Teachers]
-      operationId: getTeacher
-      summary: Obtener docente
-      description: TEACHER solo puede consultar su propio perfil; los demás roles indicados pueden consultar dentro de su tenant.
-      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
-      responses:
-        '200':
-          description: Docente encontrado.
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Teacher'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
+#    get:
+#      tags: [Teachers]
+#      operationId: getTeacher
+#      summary: Obtener docente
+#      description: TEACHER solo puede consultar su propio perfil; los demás roles indicados pueden consultar dentro de su tenant.
+#      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
+#      responses:
+#        '200':
+#          description: Docente encontrado.
+#          content:
+#            application/json:
+#              schema: {$ref: '#/components/schemas/Teacher'}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
     patch:
       tags: [Teachers]
       operationId: updateTeacher
@@ -544,19 +544,19 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
         '500': {$ref: '#/components/responses/InternalServerError'}
-    delete:
-      tags: [Teachers]
-      operationId: deactivateTeacher
-      summary: Dar de baja docente
-      description: Baja lógica exclusiva de CATALOG_ADMIN. Las habilitaciones se conservan pero dejan de ser efectivas.
-      x-required-roles: [CATALOG_ADMIN]
-      responses:
-        '204': {description: Docente dado de baja lógicamente.}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
+#    delete:
+#      tags: [Teachers]
+#      operationId: deactivateTeacher
+#      summary: Dar de baja docente
+#      description: Baja lógica exclusiva de CATALOG_ADMIN. Las habilitaciones se conservan pero dejan de ser efectivas.
+#      x-required-roles: [CATALOG_ADMIN]
+#      responses:
+#        '204': {description: Docente dado de baja lógicamente.}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '409': {$ref: '#/components/responses/Conflict'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
   /teachers/{teacherId}/habilitations:
     parameters:
       - $ref: '#/components/parameters/TeacherId'
@@ -589,8 +589,8 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
     post:
       tags: [Habilitations]
-      operationId: createHabilitation
-      summary: Crear habilitación para un docente
+      operationId: createHabilitations
+      summary: Crear habilitaciones para un docente
       description: |
         CATALOG_ADMIN o CATALOG_EDITOR. Se rechaza una combinación que ya tenga una habilitación
         activa. El curso y la asignatura deben estar activos y la asignatura debe pertenecer al curso.
@@ -599,7 +599,10 @@ paths:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/HabilitationCreate'}
+            schema:
+              type: array
+              minItems: 1
+              items: {$ref: '#/components/schemas/HabilitationCreate'}
       responses:
         '201':
           description: Habilitación creada.
@@ -608,70 +611,57 @@ paths:
               schema: { type: string, format: uri-reference }
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Habilitation'}
+              schema:
+                type: array
+                minItems: 1
+                items: { $ref: '#/components/schemas/Habilitation' }
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
         '500': {$ref: '#/components/responses/InternalServerError'}
-  /teachers/{teacherId}/habilitations/{habilitationId}:
-    parameters:
-      - $ref: '#/components/parameters/TeacherId'
-      - $ref: '#/components/parameters/HabilitationId'
-    get:
-      tags: [Habilitations]
-      operationId: getTeacherHabilitation
-      summary: Obtener una habilitación
-      description: Teacher solo puede consultar una habilitación propia.
-      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER, TEACHER]
-      responses:
-        '200':
-          description: Habilitación encontrada.
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Habilitation'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
-    delete:
-      tags: [Habilitations]
-      operationId: revokeHabilitation
-      summary: Revocar habilitación
-      description: Revocación lógica. Solo Admin o Editor; se conserva el histórico y se fija revokedAt.
-      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
-      responses:
-        '204': {description: Habilitación revocada.}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '409': {$ref: '#/components/responses/Conflict'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
-  /courses/{courseId}/subjects/{subjectId}/teachers:
-    parameters:
-      - $ref: '#/components/parameters/CourseId'
-      - $ref: '#/components/parameters/SubjectId'
-    get:
-      tags: [Queries]
-      operationId: listTeachersForSubject
-      summary: Listar docentes habilitados para una asignatura
-      description: Devuelve docentes con habilitaciones efectivas. No permite acceso a TEACHER.
-      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER]
-      parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
-      responses:
-        '200':
-          description: Página de docentes habilitados.
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/TeacherPage'}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '500': {$ref: '#/components/responses/InternalServerError'}
+#  /teachers/{teacherId}/habilitations/{habilitationId}:
+#    parameters:
+#      - $ref: '#/components/parameters/TeacherId'
+#      - $ref: '#/components/parameters/HabilitationId'
+#    delete:
+#      tags: [Habilitations]
+#      operationId: revokeHabilitation
+#      summary: Revocar habilitación
+#      description: Revocación lógica. Solo Admin o Editor; se conserva el histórico y se fija revokedAt.
+#      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR]
+#      responses:
+#        '204': {description: Habilitación revocada.}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '409': {$ref: '#/components/responses/Conflict'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
+#  /courses/{courseId}/subjects/{subjectId}/teachers:
+#    parameters:
+#      - $ref: '#/components/parameters/CourseId'
+#      - $ref: '#/components/parameters/SubjectId'
+#    get:
+#      tags: [Queries]
+#      operationId: listTeachersForSubject
+#      summary: Listar docentes habilitados para una asignatura
+#      description: Devuelve docentes con habilitaciones efectivas. No permite acceso a TEACHER.
+#      x-required-roles: [CATALOG_ADMIN, CATALOG_EDITOR, CATALOG_READER]
+#      parameters:
+#        - $ref: '#/components/parameters/Page'
+#        - $ref: '#/components/parameters/Size'
+#      responses:
+#        '200':
+#          description: Página de docentes habilitados.
+#          content:
+#            application/json:
+#              schema: {$ref: '#/components/schemas/TeacherPage'}
+#        '400': {$ref: '#/components/responses/BadRequest'}
+#        '401': {$ref: '#/components/responses/Unauthorized'}
+#        '403': {$ref: '#/components/responses/Forbidden'}
+#        '404': {$ref: '#/components/responses/NotFound'}
+#        '500': {$ref: '#/components/responses/InternalServerError'}
 components:
   securitySchemes:
     bearerAuth:
