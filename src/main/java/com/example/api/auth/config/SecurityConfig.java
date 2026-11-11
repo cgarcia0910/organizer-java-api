@@ -41,6 +41,10 @@ public class SecurityConfig {
 
     private BearerTokenResolver cookieTokenResolver() {
         return request -> {
+            String path = request.getServletPath();
+            if ("/api/auth/login".equals(path) || "/api/auth/logout".equals(path)) {
+                return null;
+            }
             Cookie[] cookies = request.getCookies();
             if (cookies == null) {
                 return null;

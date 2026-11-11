@@ -14,22 +14,24 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.sql.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+
 @Component
 public class TenantFilter extends OncePerRequestFilter {
 
     private final AppUserRepository userRepository;
-    private final RoleRepository roleRepository;
 
-    public TenantFilter(AppUserRepository userRepository, RoleRepository roleRepository) {
+    public TenantFilter(AppUserRepository userRepository) {
         this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
     }
 
     @Override
     protected boolean shouldNotFilter(
             HttpServletRequest request) {
-        return request.getServletPath()
-                .equals("/api/auth/login");
+        String patch = request.getServletPath();
+        return Arrays.asList("/api/auth/login", "/api/auth/logout").contains(patch);
     }
 
     @Override
