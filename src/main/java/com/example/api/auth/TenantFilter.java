@@ -1,6 +1,8 @@
 package com.example.api.auth;
 import com.example.api.auth.entity.AppUser;
+import com.example.api.auth.entity.Role;
 import com.example.api.auth.repository.AppUserRepository;
+import com.example.api.auth.repository.RoleRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +14,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.sql.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+
 @Component
 public class TenantFilter extends OncePerRequestFilter {
 
@@ -24,8 +30,8 @@ public class TenantFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(
             HttpServletRequest request) {
-        return request.getServletPath()
-                .equals("/api/auth/login");
+        String patch = request.getServletPath();
+        return Arrays.asList("/api/auth/login", "/api/auth/logout").contains(patch);
     }
 
     @Override
@@ -52,18 +58,18 @@ public class TenantFilter extends OncePerRequestFilter {
 
             AppUser user = userRepository.findByEmail(email)
                     .orElse(null);
-
             if (user == null) {
                 response.sendError(401);
                 return;
             }
 
             TenantContext.setTenantId(user.getTenantId());
-
+            RoleContext.setRoles(user.getRoles().stream().map(Role::getName).toList());
             chain.doFilter(request, response);
 
         } finally {
             TenantContext.clear();
+            RoleContext.clear();
         }
     }
 }

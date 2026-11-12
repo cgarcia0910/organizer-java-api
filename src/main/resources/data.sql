@@ -1,8 +1,9 @@
-INSERT INTO users (name, email, tenant_id)
-VALUES ('Ana', 'ana@example.com',  1);
-
-INSERT INTO users (name, email, tenant_id)
-VALUES ('Carlos', 'carlos@example.com',  1);
-
-INSERT INTO users (name, email, tenant_id)
-VALUES ('Lucía', 'lucia@example.com',  2);
+-- INSERT INTO users (name, email, tenant_id)
+-- VALUES ('Ana', 'ana@example.com',  '95e43320-66ce-4301-b76e-ace26b71ea4b');
+--
+-- INSERT INTO users (name, email, tenant_id)
+-- VALUES ('Carlos', 'carlos@example.com',  'ea3c47d5-e94a-4737-be77-42d1ab120038');
+--
+-- INSERT INTO users (name, email, tenant_id)
+-- VALUES ('Lucía', 'lucia@example.com',  'ea3c47d5-e94a-4737-be77-42d1ab120038');
+--
