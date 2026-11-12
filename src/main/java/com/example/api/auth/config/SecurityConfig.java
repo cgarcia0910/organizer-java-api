@@ -66,23 +66,6 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain h2ConsoleSecurityFilterChain(
-            HttpSecurity http) throws Exception {
-
-        http
-                .securityMatcher(PathRequest.toH2Console())
-                .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
-                )
-                .csrf(csrf -> csrf.disable())
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.sameOrigin())
-                );
-
-        return http.build();
-    }
-    @Bean
-    @Order(2)
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             TenantFilter tenantFilter) throws Exception {
